@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileSpreadsheet, CheckCircle2, Clock } from "lucide-react";
+import { FileSpreadsheet, CheckCircle2, Clock, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { List } from "@/types";
@@ -30,8 +30,13 @@ export function ListCard({ list }: ListCardProps) {
               {list.row_count.toLocaleString()} rows &middot; {list.columns.length} columns &middot; {date}
             </p>
           </div>
-          <Badge variant={list.cleaned ? "default" : "secondary"} className="shrink-0">
-            {list.cleaned ? (
+          <Badge
+            variant={list.enriched ? "default" : list.cleaned ? "default" : "secondary"}
+            className="shrink-0"
+          >
+            {list.enriched ? (
+              <><Zap className="mr-1 h-3 w-3" /> Enriched</>
+            ) : list.cleaned ? (
               <><CheckCircle2 className="mr-1 h-3 w-3" /> Cleaned</>
             ) : (
               <><Clock className="mr-1 h-3 w-3" /> Raw</>

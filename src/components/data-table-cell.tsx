@@ -18,6 +18,13 @@ const flagStyles: Record<CellFlag, string> = {
   formatted: "bg-green-500/10",
   personal_email: "bg-blue-500/10",
   business_email: "bg-purple-500/10",
+  enriched: "bg-cyan-500/10",
+  needs_enrichment: "border-l-2 border-l-orange-500 bg-orange-500/10",
+  valid: "bg-green-500/10",
+  invalid: "bg-red-500/10",
+  risky: "bg-yellow-500/10",
+  unknown: "bg-gray-500/10",
+  role_account: "bg-purple-500/10 border-l-2 border-l-purple-500",
 };
 
 export function DataTableCell({

@@ -17,26 +17,56 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { DataTableCell } from "@/components/data-table-cell";
-import { ListRow } from "@/types";
+import { ListRow, CellFlag } from "@/types";
 import { cn } from "@/lib/utils";
+import { FilterMode } from "@/components/data-table-toolbar";
 
 interface DataTableProps {
   rows: ListRow[];
   columns: string[];
   hideDuplicates: boolean;
+  filterMode: FilterMode;
   onCellEdit: (rowId: string, column: string, value: string) => void;
+}
+
+function rowMatchesFilter(row: ListRow, filterMode: FilterMode): boolean {
+  if (filterMode === "all") return true;
+
+  const flags = Object.values(row.flags) as CellFlag[];
+
+  switch (filterMode) {
+    case "needs_enrichment":
+      return flags.includes("needs_enrichment") || flags.includes("missing");
+    case "valid":
+      return flags.includes("valid");
+    case "invalid":
+      return flags.includes("invalid");
+    case "risky":
+      return flags.includes("risky");
+    case "role_account":
+      return flags.includes("role_account");
+    default:
+      return true;
+  }
 }
 
 export function DataTable({
   rows,
   columns,
   hideDuplicates,
+  filterMode,
   onCellEdit,
 }: DataTableProps) {
-  const filteredRows = useMemo(
-    () => (hideDuplicates ? rows.filter((r) => !r.is_duplicate) : rows),
-    [rows, hideDuplicates]
-  );
+  const filteredRows = useMemo(() => {
+    let result = rows;
+    if (hideDuplicates) {
+      result = result.filter((r) => !r.is_duplicate);
+    }
+    if (filterMode !== "all") {
+      result = result.filter((r) => rowMatchesFilter(r, filterMode));
+    }
+    return result;
+  }, [rows, hideDuplicates, filterMode]);
 
   const tableColumns = useMemo<ColumnDef<ListRow>[]>(
     () => [

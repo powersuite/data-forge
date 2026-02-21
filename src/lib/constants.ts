@@ -85,4 +85,51 @@ export const PRESERVE_ACRONYMS = new Set([
   "NYC",
 ]);
 
+export const WEBSITE_COLUMN_PATTERNS = [
+  /^website$/i,
+  /^url$/i,
+  /^web$/i,
+  /^site$/i,
+  /^web[_\s]?address$/i,
+  /^website[_\s]?url$/i,
+];
+
+export const COMPANY_COLUMN_PATTERNS = [
+  /^company$/i,
+  /^business$/i,
+  /^business[_\s]?name$/i,
+  /^company[_\s]?name$/i,
+  /^organization$/i,
+];
+
+export const ROLE_ACCOUNT_PREFIXES = new Set([
+  "info",
+  "hello",
+  "support",
+  "contact",
+  "admin",
+  "sales",
+  "billing",
+  "help",
+  "office",
+  "team",
+  "service",
+  "enquiries",
+  "inquiries",
+  "general",
+  "marketing",
+  "media",
+  "press",
+  "hr",
+  "jobs",
+  "careers",
+  "noreply",
+  "no-reply",
+  "webmaster",
+  "postmaster",
+  "abuse",
+  "feedback",
+  "welcome",
+]);
+
 export const BATCH_SIZE = 500;

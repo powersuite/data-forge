@@ -8,15 +8,18 @@ import Link from "next/link";
 
 import { supabase } from "@/lib/supabase";
 import { runCleanup } from "@/lib/cleanup";
+import { runEnrichment } from "@/lib/enrichment";
 import { unparseCSV } from "@/lib/csv-parser";
 import { downloadFile } from "@/lib/utils";
 import { BATCH_SIZE } from "@/lib/constants";
-import { List, ListRow, CleanupSummary } from "@/types";
+import { List, ListRow, CleanupSummary, EnrichmentProgress as EnrichmentProgressType, EnrichmentSummary } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
-import { DataTableToolbar } from "@/components/data-table-toolbar";
+import { DataTableToolbar, FilterMode } from "@/components/data-table-toolbar";
 import { CleanupSummaryDialog } from "@/components/cleanup-summary-dialog";
+import { EnrichmentProgress } from "@/components/enrichment-progress";
+import { EnrichmentSummaryDialog } from "@/components/enrichment-summary-dialog";
 
 export default function ListDetailPage({
   params,
@@ -34,6 +37,13 @@ export default function ListDetailPage({
   const [hideDuplicates, setHideDuplicates] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summary, setSummary] = useState<CleanupSummary | null>(null);
+
+  // Enrichment state
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgressType | null>(null);
+  const [enrichmentSummary, setEnrichmentSummary] = useState<EnrichmentSummary | null>(null);
+  const [enrichmentSummaryOpen, setEnrichmentSummaryOpen] = useState(false);
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   // Load list and rows
   useEffect(() => {
@@ -111,6 +121,69 @@ export default function ListDetailPage({
     }
   }, [list, rows, columns]);
 
+  // Enrichment
+  const handleEnrich = useCallback(async () => {
+    if (!list || rows.length === 0) return;
+    setIsEnriching(true);
+    setEnrichmentProgress({ step: "Starting...", current: 0, total: rows.length, errors: 0 });
+
+    try {
+      const result = await runEnrichment(rows, columns, list.id, (progress) => {
+        setEnrichmentProgress(progress);
+      });
+
+      setEnrichmentSummary(result);
+      setEnrichmentSummaryOpen(true);
+
+      // Re-fetch rows from Supabase to get server-side updates
+      const { data: rowData } = await supabase
+        .from("list_rows")
+        .select("*")
+        .eq("list_id", list.id)
+        .order("row_index", { ascending: true });
+
+      if (rowData) {
+        setRows(rowData as ListRow[]);
+        // Check if any new columns were added (Title, etc.)
+        const allKeys = new Set<string>();
+        for (const row of rowData as ListRow[]) {
+          for (const key of Object.keys(row.data)) {
+            allKeys.add(key);
+          }
+        }
+        const newColumns = Array.from(allKeys);
+        // Preserve existing column order, append new ones
+        const existingSet = new Set(columns);
+        const addedColumns = newColumns.filter((c) => !existingSet.has(c));
+        if (addedColumns.length > 0) {
+          const updatedColumns = [...columns, ...addedColumns];
+          setColumns(updatedColumns);
+          await supabase
+            .from("lists")
+            .update({ columns: updatedColumns, updated_at: new Date().toISOString() })
+            .eq("id", list.id);
+        }
+      }
+
+      // Mark list as enriched
+      await supabase
+        .from("lists")
+        .update({
+          enriched: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", list.id);
+
+      setList((prev) => (prev ? { ...prev, enriched: true } : prev));
+      toast.success("Enrichment complete!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Enrichment failed");
+    } finally {
+      setIsEnriching(false);
+      setEnrichmentProgress(null);
+    }
+  }, [list, rows, columns]);
+
   // Cell edit
   const handleCellEdit = useCallback(
     async (rowId: string, column: string, value: string) => {
@@ -178,18 +251,31 @@ export default function ListDetailPage({
       <DataTableToolbar
         onCleanup={handleCleanup}
         onExport={handleExport}
+        onEnrich={handleEnrich}
         isCleaning={isCleaning}
         isCleaned={list?.cleaned ?? false}
+        isEnriching={isEnriching}
+        isEnriched={list?.enriched ?? false}
+        enrichmentProgress={enrichmentProgress}
         hideDuplicates={hideDuplicates}
         onToggleDuplicates={() => setHideDuplicates((h) => !h)}
         duplicateCount={duplicateCount}
         rowCount={hideDuplicates ? rows.length - duplicateCount : rows.length}
+        filterMode={filterMode}
+        onFilterChange={setFilterMode}
       />
+
+      {isEnriching && enrichmentProgress && (
+        <div className="mb-3">
+          <EnrichmentProgress progress={enrichmentProgress} />
+        </div>
+      )}
 
       <DataTable
         rows={rows}
         columns={columns}
         hideDuplicates={hideDuplicates}
+        filterMode={filterMode}
         onCellEdit={handleCellEdit}
       />
 
@@ -197,6 +283,12 @@ export default function ListDetailPage({
         open={summaryOpen}
         onOpenChange={setSummaryOpen}
         summary={summary}
+      />
+
+      <EnrichmentSummaryDialog
+        open={enrichmentSummaryOpen}
+        onOpenChange={setEnrichmentSummaryOpen}
+        summary={enrichmentSummary}
       />
     </div>
   );
