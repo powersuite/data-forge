@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { DataTableCell } from "@/components/data-table-cell";
 import { ListRow, CellFlag } from "@/types";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ interface DataTableProps {
   columns: string[];
   hideDuplicates: boolean;
   filterMode: FilterMode;
+  isEnriched: boolean;
   onCellEdit: (rowId: string, column: string, value: string) => void;
 }
 
@@ -50,13 +51,28 @@ function rowMatchesFilter(row: ListRow, filterMode: FilterMode): boolean {
   }
 }
 
+const SOURCE_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+  website: { label: "Scraped", variant: "default" },
+  icypeas: { label: "Icypeas", variant: "secondary" },
+  "website+icypeas": { label: "Scraped + Icypeas", variant: "default" },
+};
+
 export function DataTable({
   rows,
   columns,
   hideDuplicates,
   filterMode,
+  isEnriched,
   onCellEdit,
 }: DataTableProps) {
+  // Filter out internal columns from display
+  const displayColumns = useMemo(
+    () => columns.filter((c) => !c.startsWith("_")),
+    [columns]
+  );
+
+  const hasEnrichmentSource = isEnriched && rows.some((r) => r.data["_enrichment_source"]);
+
   const filteredRows = useMemo(() => {
     let result = rows;
     if (hideDuplicates) {
@@ -68,19 +84,19 @@ export function DataTable({
     return result;
   }, [rows, hideDuplicates, filterMode]);
 
-  const tableColumns = useMemo<ColumnDef<ListRow>[]>(
-    () => [
+  const tableColumns = useMemo<ColumnDef<ListRow>[]>(() => {
+    const cols: ColumnDef<ListRow>[] = [
       {
         id: "_index",
         header: "#",
         size: 50,
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="text-xs text-muted-foreground tabular-nums px-2">
             {row.original.row_index + 1}
           </span>
         ),
       },
-      ...columns.map(
+      ...displayColumns.map(
         (col): ColumnDef<ListRow> => ({
           id: col,
           header: col,
@@ -95,9 +111,31 @@ export function DataTable({
           ),
         })
       ),
-    ],
-    [columns, onCellEdit]
-  );
+    ];
+
+    // Add enrichment source column if enriched
+    if (hasEnrichmentSource) {
+      cols.push({
+        id: "_source",
+        header: "Source",
+        size: 120,
+        cell: ({ row }) => {
+          const source = row.original.data["_enrichment_source"];
+          if (!source) return <span className="px-2 text-xs text-muted-foreground">—</span>;
+          const info = SOURCE_LABELS[source] ?? { label: source, variant: "outline" as const };
+          return (
+            <div className="px-2 py-1">
+              <Badge variant={info.variant} className="text-[10px] px-1.5 py-0">
+                {info.label}
+              </Badge>
+            </div>
+          );
+        },
+      });
+    }
+
+    return cols;
+  }, [displayColumns, onCellEdit, hasEnrichmentSource]);
 
   const table = useReactTable({
     data: filteredRows,
@@ -107,7 +145,7 @@ export function DataTable({
   });
 
   return (
-    <ScrollArea className="rounded-md border">
+    <div className="rounded-md border overflow-auto max-h-[calc(100vh-220px)]">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -115,8 +153,8 @@ export function DataTable({
               {headerGroup.headers.map((header) => (
                 <TableHead
                   key={header.id}
-                  style={{ width: header.getSize() }}
-                  className="whitespace-nowrap bg-muted/50 text-xs font-semibold"
+                  style={{ width: header.getSize(), minWidth: header.getSize() }}
+                  className="whitespace-nowrap bg-muted/50 text-xs font-semibold sticky top-0 z-10"
                 >
                   {flexRender(
                     header.column.columnDef.header,
@@ -152,7 +190,6 @@ export function DataTable({
           )}
         </TableBody>
       </Table>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    </div>
   );
 }

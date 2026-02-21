@@ -1,5 +1,5 @@
 import { ListRow, EnrichmentProgress, EnrichmentSummary } from "@/types";
-import { analyzeEnrichmentNeeds, RowEnrichmentPlan } from "./analyze-needs";
+import { analyzeEnrichmentNeeds, resolveColumns } from "./analyze-needs";
 import { generateEmailPatterns } from "./generate-email-patterns";
 
 const API_DELAY_MS = 200;
@@ -55,9 +55,17 @@ export async function runEnrichment(
     errors: 0,
   };
 
+  // Resolve actual column names from the dataset
+  const resolved = resolveColumns(columns);
+  const columnNames = {
+    firstNameCol: resolved.firstNameCol,
+    lastNameCol: resolved.lastNameCol,
+    emailCol: resolved.emailCol ?? "email",
+  };
+
   // Phase 1: Analyze needs
   onProgress({ step: "Analyzing rows...", current: 0, total: rows.length, errors: 0 });
-  const plans = analyzeEnrichmentNeeds(rows, columns);
+  const plans = analyzeEnrichmentNeeds(rows, columns, resolved);
   const activePlans = plans.filter((p) => p.need !== "skip");
   const total = activePlans.length;
 
@@ -72,7 +80,7 @@ export async function runEnrichment(
   for (const plan of scrapeNeeds) {
     current++;
     onProgress({
-      step: "Scraping websites...",
+      step: `Scraping websites... (${current}/${total})`,
       current,
       total,
       errors: summary.errors,
@@ -83,6 +91,7 @@ export async function runEnrichment(
         rowId: plan.rowId,
         websiteUrl: plan.websiteUrl,
         existingData: plan.existingData,
+        columnNames,
       });
 
       if (result.success && result.contact) {
@@ -107,7 +116,7 @@ export async function runEnrichment(
   for (const plan of emailNeeds) {
     current++;
     onProgress({
-      step: "Finding emails...",
+      step: `Finding emails... (${current}/${total})`,
       current,
       total,
       errors: summary.errors,
@@ -119,6 +128,7 @@ export async function runEnrichment(
         firstName: plan.firstName,
         lastName: plan.lastName,
         domain: plan.domain,
+        columnNames,
       });
 
       if (result.success && result.email) {
@@ -156,7 +166,7 @@ export async function runEnrichment(
   for (const plan of verifyNeeds) {
     current++;
     onProgress({
-      step: "Verifying emails...",
+      step: `Verifying emails... (${current}/${total})`,
       current,
       total,
       errors: summary.errors,
@@ -166,6 +176,7 @@ export async function runEnrichment(
       const result = await callApi<VerifyResponse>("/api/enrich/verify-email", {
         rowId: plan.rowId,
         email: plan.email,
+        columnNames,
       });
 
       if (result.success) {
@@ -194,15 +205,6 @@ export async function runEnrichment(
     }
 
     await delay(API_DELAY_MS);
-  }
-
-  // Mark list as enriched
-  try {
-    await fetch("/api/enrich/scrape", {
-      method: "OPTIONS",
-    }).catch(() => {});
-  } catch {
-    // ignore
   }
 
   return summary;

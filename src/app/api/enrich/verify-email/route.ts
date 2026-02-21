@@ -4,7 +4,7 @@ import { verifyEmail } from "@/lib/enrichment/millionverifier";
 
 export async function POST(request: NextRequest) {
   try {
-    const { rowId, email } = await request.json();
+    const { rowId, email, columnNames } = await request.json();
 
     if (!rowId || !email) {
       return NextResponse.json(
@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const emailCol = columnNames?.emailCol ?? "email";
 
     const result = await verifyEmail(email);
 
@@ -27,9 +29,9 @@ export async function POST(request: NextRequest) {
 
       // Set email verification flag
       if (result.isRoleAccount) {
-        updatedFlags["Email"] = "role_account";
+        updatedFlags[emailCol] = "role_account";
       } else {
-        updatedFlags["Email"] = result.status;
+        updatedFlags[emailCol] = result.status;
       }
 
       await supabaseServer

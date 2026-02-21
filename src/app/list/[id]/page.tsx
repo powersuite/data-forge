@@ -276,6 +276,7 @@ export default function ListDetailPage({
         columns={columns}
         hideDuplicates={hideDuplicates}
         filterMode={filterMode}
+        isEnriched={list?.enriched ?? false}
         onCellEdit={handleCellEdit}
       />
 

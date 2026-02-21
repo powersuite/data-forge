@@ -12,19 +12,21 @@ interface DataTableCellProps {
 }
 
 const flagStyles: Record<CellFlag, string> = {
+  // Phase 1 cleanup flags
   missing: "border-l-2 border-l-amber-500 bg-amber-500/10",
   cleaned: "bg-green-500/10",
   split: "bg-green-500/10",
   formatted: "bg-green-500/10",
   personal_email: "bg-blue-500/10",
   business_email: "bg-purple-500/10",
-  enriched: "bg-cyan-500/10",
+  // Phase 2 enrichment flags
+  enriched: "border-l-2 border-l-emerald-400 bg-emerald-500/20",
   needs_enrichment: "border-l-2 border-l-orange-500 bg-orange-500/10",
-  valid: "bg-green-500/10",
-  invalid: "bg-red-500/10",
-  risky: "bg-yellow-500/10",
+  valid: "border-l-2 border-l-green-500 bg-green-500/15",
+  invalid: "border-l-2 border-l-red-500 bg-red-500/15",
+  risky: "border-l-2 border-l-yellow-500 bg-yellow-500/15",
   unknown: "bg-gray-500/10",
-  role_account: "bg-purple-500/10 border-l-2 border-l-purple-500",
+  role_account: "border-l-2 border-l-purple-500 bg-purple-500/15",
 };
 
 export function DataTableCell({

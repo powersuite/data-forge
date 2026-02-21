@@ -4,7 +4,7 @@ import { findEmail } from "@/lib/enrichment/icypeas";
 
 export async function POST(request: NextRequest) {
   try {
-    const { rowId, firstName, lastName, domain } = await request.json();
+    const { rowId, firstName, lastName, domain, columnNames } = await request.json();
 
     if (!rowId || !firstName || !lastName || !domain) {
       return NextResponse.json(
@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const emailCol = columnNames?.emailCol ?? "email";
 
     const result = await findEmail(firstName, lastName, domain);
 
@@ -27,8 +29,13 @@ export async function POST(request: NextRequest) {
         const updatedData = { ...row.data };
         const updatedFlags = { ...row.flags };
 
-        updatedData["Email"] = result.email;
-        updatedFlags["Email"] = "enriched";
+        updatedData[emailCol] = result.email;
+        updatedFlags[emailCol] = "enriched";
+        // Track source
+        const existingSource = updatedData["_enrichment_source"];
+        updatedData["_enrichment_source"] = existingSource
+          ? existingSource + "+icypeas"
+          : "icypeas";
 
         await supabaseServer
           .from("list_rows")

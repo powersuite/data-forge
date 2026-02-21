@@ -5,7 +5,7 @@ import { extractContactWithClaude } from "@/lib/enrichment/extract-contact";
 
 export async function POST(request: NextRequest) {
   try {
-    const { rowId, websiteUrl, existingData } = await request.json();
+    const { rowId, websiteUrl, existingData, columnNames } = await request.json();
 
     if (!rowId || !websiteUrl) {
       return NextResponse.json(
@@ -13,6 +13,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const firstNameCol = columnNames?.firstNameCol ?? "first_name";
+    const lastNameCol = columnNames?.lastNameCol ?? "last_name";
+    const titleCol = "Title";
 
     // Scrape website
     const { text, error: scrapeError } = await scrapeWebsite(websiteUrl);
@@ -45,17 +49,19 @@ export async function POST(request: NextRequest) {
       const updatedFlags = { ...row.flags };
 
       if (contact.first_name) {
-        updatedData["First Name"] = contact.first_name;
-        updatedFlags["First Name"] = "enriched";
+        updatedData[firstNameCol] = contact.first_name;
+        updatedFlags[firstNameCol] = "enriched";
       }
       if (contact.last_name) {
-        updatedData["Last Name"] = contact.last_name;
-        updatedFlags["Last Name"] = "enriched";
+        updatedData[lastNameCol] = contact.last_name;
+        updatedFlags[lastNameCol] = "enriched";
       }
       if (contact.title) {
-        updatedData["Title"] = contact.title;
-        updatedFlags["Title"] = "enriched";
+        updatedData[titleCol] = contact.title;
+        updatedFlags[titleCol] = "enriched";
       }
+      // Track enrichment source
+      updatedData["_enrichment_source"] = "website";
 
       await supabaseServer
         .from("list_rows")

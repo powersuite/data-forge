@@ -25,6 +25,14 @@ export interface RowEnrichmentPlan {
   existingData: Record<string, string>;
 }
 
+/** The actual column names found in the dataset */
+export interface ResolvedColumns {
+  firstNameCol: string;
+  lastNameCol: string;
+  emailCol: string | undefined;
+  websiteCol: string | undefined;
+}
+
 function findColumn(columns: string[], patterns: RegExp[]): string | undefined {
   return columns.find((col) => patterns.some((p) => p.test(col)));
 }
@@ -47,14 +55,21 @@ function getDomainFromUrl(url: string): string | null {
   }
 }
 
+export function resolveColumns(columns: string[]): ResolvedColumns {
+  return {
+    firstNameCol: findColumn(columns, FIRST_NAME_PATTERNS) ?? "first_name",
+    lastNameCol: findColumn(columns, LAST_NAME_PATTERNS) ?? "last_name",
+    emailCol: findColumn(columns, EMAIL_COLUMN_PATTERNS),
+    websiteCol: findColumn(columns, WEBSITE_COLUMN_PATTERNS),
+  };
+}
+
 export function analyzeEnrichmentNeeds(
   rows: ListRow[],
-  columns: string[]
+  columns: string[],
+  resolved: ResolvedColumns
 ): RowEnrichmentPlan[] {
-  const websiteCol = findColumn(columns, WEBSITE_COLUMN_PATTERNS);
-  const emailCol = findColumn(columns, EMAIL_COLUMN_PATTERNS);
-  const firstNameCol = findColumn(columns, FIRST_NAME_PATTERNS) ?? "First Name";
-  const lastNameCol = findColumn(columns, LAST_NAME_PATTERNS) ?? "Last Name";
+  const { firstNameCol, lastNameCol, emailCol, websiteCol } = resolved;
 
   return rows.map((row) => {
     const data = row.data;
