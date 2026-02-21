@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Download, Eye, EyeOff, Zap, CheckCircle2 } from "lucide-react";
+import { Sparkles, Download, Eye, EyeOff, Zap, CheckCircle2, RotateCw, FileText } from "lucide-react";
 import { EnrichmentProgress as EnrichmentProgressType } from "@/types";
 
 export type FilterMode =
@@ -23,6 +23,8 @@ interface DataTableToolbarProps {
   onCleanup: () => void;
   onExport: () => void;
   onEnrich: () => void;
+  onReEnrich?: () => void;
+  onViewLog?: () => void;
   isCleaning: boolean;
   isCleaned: boolean;
   isEnriching: boolean;
@@ -34,12 +36,15 @@ interface DataTableToolbarProps {
   rowCount: number;
   filterMode: FilterMode;
   onFilterChange: (mode: FilterMode) => void;
+  hasLog?: boolean;
 }
 
 export function DataTableToolbar({
   onCleanup,
   onExport,
   onEnrich,
+  onReEnrich,
+  onViewLog,
   isCleaning,
   isCleaned,
   isEnriching,
@@ -51,6 +56,7 @@ export function DataTableToolbar({
   rowCount,
   filterMode,
   onFilterChange,
+  hasLog,
 }: DataTableToolbarProps) {
   const enrichButtonLabel = isEnriching && enrichmentProgress
     ? `Enriching... ${enrichmentProgress.current}/${enrichmentProgress.total}`
@@ -114,6 +120,17 @@ export function DataTableToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {hasLog && onViewLog && (
+          <Button
+            onClick={onViewLog}
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+          >
+            <FileText className="h-4 w-4" />
+            Log
+          </Button>
+        )}
         <Button
           onClick={onCleanup}
           disabled={isCleaning || isCleaned}
@@ -132,6 +149,18 @@ export function DataTableToolbar({
           <Zap className="h-4 w-4" />
           {enrichButtonLabel}
         </Button>
+        {isEnriched && onReEnrich && (
+          <Button
+            onClick={onReEnrich}
+            disabled={isEnriching}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-blue-700 text-blue-300 hover:bg-blue-900/50 hover:text-blue-200"
+          >
+            <RotateCw className="h-4 w-4" />
+            Re-enrich
+          </Button>
+        )}
         <Button
           onClick={onExport}
           variant="outline"

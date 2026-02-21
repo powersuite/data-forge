@@ -12,7 +12,7 @@ import { runEnrichment } from "@/lib/enrichment";
 import { unparseCSV } from "@/lib/csv-parser";
 import { downloadFile } from "@/lib/utils";
 import { BATCH_SIZE } from "@/lib/constants";
-import { List, ListRow, CleanupSummary, EnrichmentProgress as EnrichmentProgressType, EnrichmentSummary } from "@/types";
+import { List, ListRow, CleanupSummary, EnrichmentProgress as EnrichmentProgressType, EnrichmentSummary, EnrichmentLogEntry } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
@@ -20,6 +20,7 @@ import { DataTableToolbar, FilterMode } from "@/components/data-table-toolbar";
 import { CleanupSummaryDialog } from "@/components/cleanup-summary-dialog";
 import { EnrichmentProgress } from "@/components/enrichment-progress";
 import { EnrichmentSummaryDialog } from "@/components/enrichment-summary-dialog";
+import { EnrichmentLogDialog } from "@/components/enrichment-log-dialog";
 import { ColorLegend } from "@/components/color-legend";
 
 export default function ListDetailPage({
@@ -44,6 +45,8 @@ export default function ListDetailPage({
   const [enrichmentProgress, setEnrichmentProgress] = useState<EnrichmentProgressType | null>(null);
   const [enrichmentSummary, setEnrichmentSummary] = useState<EnrichmentSummary | null>(null);
   const [enrichmentSummaryOpen, setEnrichmentSummaryOpen] = useState(false);
+  const [enrichmentLog, setEnrichmentLog] = useState<EnrichmentLogEntry[]>([]);
+  const [enrichmentLogOpen, setEnrichmentLogOpen] = useState(false);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   // Load list and rows
@@ -75,55 +78,8 @@ export default function ListDetailPage({
     load();
   }, [id, router]);
 
-  // Smart Cleanup
-  const handleCleanup = useCallback(async () => {
-    if (!list || rows.length === 0) return;
-    setIsCleaning(true);
-
-    try {
-      const result = runCleanup(rows, columns);
-      setRows(result.rows);
-      setColumns(result.newColumns);
-      setSummary(result.summary);
-      setSummaryOpen(true);
-
-      // Update list metadata
-      await supabase
-        .from("lists")
-        .update({
-          cleaned: true,
-          columns: result.newColumns,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", list.id);
-
-      setList((prev) => (prev ? { ...prev, cleaned: true, columns: result.newColumns } : prev));
-
-      // Batch update rows in Supabase
-      for (let i = 0; i < result.rows.length; i += BATCH_SIZE) {
-        const batch = result.rows.slice(i, i + BATCH_SIZE);
-        for (const row of batch) {
-          await supabase
-            .from("list_rows")
-            .update({
-              data: row.data,
-              flags: row.flags,
-              is_duplicate: row.is_duplicate,
-            })
-            .eq("id", row.id);
-        }
-      }
-
-      toast.success("Cleanup complete!");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Cleanup failed");
-    } finally {
-      setIsCleaning(false);
-    }
-  }, [list, rows, columns]);
-
-  // Enrichment
-  const handleEnrich = useCallback(async () => {
+  /** Run enrichment (shared by both Enrich and Re-enrich) */
+  const doEnrich = useCallback(async () => {
     if (!list || rows.length === 0) return;
     setIsEnriching(true);
     setEnrichmentProgress({ step: "Starting...", current: 0, total: rows.length, errors: 0 });
@@ -134,6 +90,7 @@ export default function ListDetailPage({
       });
 
       setEnrichmentSummary(result);
+      setEnrichmentLog(result.log ?? []);
       setEnrichmentSummaryOpen(true);
 
       // Re-fetch rows from Supabase to get server-side updates
@@ -183,6 +140,94 @@ export default function ListDetailPage({
     } finally {
       setIsEnriching(false);
       setEnrichmentProgress(null);
+    }
+  }, [list, rows, columns]);
+
+  // Enrichment (first run)
+  const handleEnrich = useCallback(async () => {
+    await doEnrich();
+  }, [doEnrich]);
+
+  // Re-enrichment: clear enrichment flags, reset enriched status, then run again
+  const handleReEnrich = useCallback(async () => {
+    if (!list) return;
+
+    // Clear enrichment flags on all rows so they'll be re-processed
+    const clearedRows = rows.map((row) => {
+      const newFlags = { ...row.flags };
+      for (const [key, flag] of Object.entries(newFlags)) {
+        if (flag === "enriched" || flag === "valid" || flag === "invalid" || flag === "risky" || flag === "unknown" || flag === "role_account") {
+          delete newFlags[key];
+        }
+      }
+      return { ...row, flags: newFlags };
+    });
+
+    // Batch update cleared flags to Supabase
+    for (const row of clearedRows) {
+      await supabase
+        .from("list_rows")
+        .update({ flags: row.flags })
+        .eq("id", row.id);
+    }
+
+    // Reset enriched status on the list
+    await supabase
+      .from("lists")
+      .update({ enriched: false, enrichment_summary: null, updated_at: new Date().toISOString() })
+      .eq("id", list.id);
+
+    setList((prev) => (prev ? { ...prev, enriched: false, enrichment_summary: null } : prev));
+    setRows(clearedRows);
+
+    // Now run enrichment again
+    await doEnrich();
+  }, [list, rows, doEnrich]);
+
+  // Smart Cleanup
+  const handleCleanup = useCallback(async () => {
+    if (!list || rows.length === 0) return;
+    setIsCleaning(true);
+
+    try {
+      const result = runCleanup(rows, columns);
+      setRows(result.rows);
+      setColumns(result.newColumns);
+      setSummary(result.summary);
+      setSummaryOpen(true);
+
+      // Update list metadata
+      await supabase
+        .from("lists")
+        .update({
+          cleaned: true,
+          columns: result.newColumns,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", list.id);
+
+      setList((prev) => (prev ? { ...prev, cleaned: true, columns: result.newColumns } : prev));
+
+      // Batch update rows in Supabase
+      for (let i = 0; i < result.rows.length; i += BATCH_SIZE) {
+        const batch = result.rows.slice(i, i + BATCH_SIZE);
+        for (const row of batch) {
+          await supabase
+            .from("list_rows")
+            .update({
+              data: row.data,
+              flags: row.flags,
+              is_duplicate: row.is_duplicate,
+            })
+            .eq("id", row.id);
+        }
+      }
+
+      toast.success("Cleanup complete!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Cleanup failed");
+    } finally {
+      setIsCleaning(false);
     }
   }, [list, rows, columns]);
 
@@ -254,6 +299,8 @@ export default function ListDetailPage({
         onCleanup={handleCleanup}
         onExport={handleExport}
         onEnrich={handleEnrich}
+        onReEnrich={handleReEnrich}
+        onViewLog={() => setEnrichmentLogOpen(true)}
         isCleaning={isCleaning}
         isCleaned={list?.cleaned ?? false}
         isEnriching={isEnriching}
@@ -265,6 +312,7 @@ export default function ListDetailPage({
         rowCount={hideDuplicates ? rows.length - duplicateCount : rows.length}
         filterMode={filterMode}
         onFilterChange={setFilterMode}
+        hasLog={enrichmentLog.length > 0}
       />
 
       <ColorLegend />
@@ -294,6 +342,12 @@ export default function ListDetailPage({
         open={enrichmentSummaryOpen}
         onOpenChange={setEnrichmentSummaryOpen}
         summary={enrichmentSummary}
+      />
+
+      <EnrichmentLogDialog
+        open={enrichmentLogOpen}
+        onOpenChange={setEnrichmentLogOpen}
+        log={enrichmentLog}
       />
     </div>
   );

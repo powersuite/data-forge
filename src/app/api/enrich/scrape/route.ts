@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     if (!rowId || !websiteUrl) {
       return NextResponse.json(
-        { error: "rowId and websiteUrl are required" },
+        { success: false, error: "rowId and websiteUrl are required" },
         { status: 400 }
       );
     }
@@ -38,35 +38,47 @@ export async function POST(request: NextRequest) {
     }
 
     // Update row in Supabase
-    const { data: row } = await supabaseServer
+    const { data: row, error: fetchErr } = await supabaseServer
       .from("list_rows")
       .select("data, flags")
       .eq("id", rowId)
       .single();
 
-    if (row) {
-      const updatedData = { ...row.data };
-      const updatedFlags = { ...row.flags };
+    if (fetchErr || !row) {
+      return NextResponse.json({
+        success: false,
+        error: `Extracted contact but failed to fetch row: ${fetchErr?.message ?? "row not found"}`,
+      });
+    }
 
-      if (contact.first_name) {
-        updatedData[firstNameCol] = contact.first_name;
-        updatedFlags[firstNameCol] = "enriched";
-      }
-      if (contact.last_name) {
-        updatedData[lastNameCol] = contact.last_name;
-        updatedFlags[lastNameCol] = "enriched";
-      }
-      if (contact.title) {
-        updatedData[titleCol] = contact.title;
-        updatedFlags[titleCol] = "enriched";
-      }
-      // Track enrichment source
-      updatedData["_enrichment_source"] = "website";
+    const updatedData = { ...row.data };
+    const updatedFlags = { ...row.flags };
 
-      await supabaseServer
-        .from("list_rows")
-        .update({ data: updatedData, flags: updatedFlags })
-        .eq("id", rowId);
+    if (contact.first_name) {
+      updatedData[firstNameCol] = contact.first_name;
+      updatedFlags[firstNameCol] = "enriched";
+    }
+    if (contact.last_name) {
+      updatedData[lastNameCol] = contact.last_name;
+      updatedFlags[lastNameCol] = "enriched";
+    }
+    if (contact.title) {
+      updatedData[titleCol] = contact.title;
+      updatedFlags[titleCol] = "enriched";
+    }
+    // Track enrichment source
+    updatedData["_enrichment_source"] = "website";
+
+    const { error: updateErr } = await supabaseServer
+      .from("list_rows")
+      .update({ data: updatedData, flags: updatedFlags })
+      .eq("id", rowId);
+
+    if (updateErr) {
+      return NextResponse.json({
+        success: false,
+        error: `Extracted contact but failed to save: ${updateErr.message}`,
+      });
     }
 
     return NextResponse.json({

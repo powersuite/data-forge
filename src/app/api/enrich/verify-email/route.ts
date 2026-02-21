@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     if (!rowId || !email) {
       return NextResponse.json(
-        { error: "rowId and email are required" },
+        { success: false, error: "rowId and email are required" },
         { status: 400 }
       );
     }
@@ -18,26 +18,38 @@ export async function POST(request: NextRequest) {
     const result = await verifyEmail(email);
 
     // Update row in Supabase
-    const { data: row } = await supabaseServer
+    const { data: row, error: fetchErr } = await supabaseServer
       .from("list_rows")
       .select("data, flags")
       .eq("id", rowId)
       .single();
 
-    if (row) {
-      const updatedFlags = { ...row.flags };
+    if (fetchErr || !row) {
+      return NextResponse.json({
+        success: false,
+        error: `Verified email but failed to fetch row: ${fetchErr?.message ?? "row not found"}`,
+      });
+    }
 
-      // Set email verification flag
-      if (result.isRoleAccount) {
-        updatedFlags[emailCol] = "role_account";
-      } else {
-        updatedFlags[emailCol] = result.status;
-      }
+    const updatedFlags = { ...row.flags };
 
-      await supabaseServer
-        .from("list_rows")
-        .update({ flags: updatedFlags })
-        .eq("id", rowId);
+    // Set email verification flag
+    if (result.isRoleAccount) {
+      updatedFlags[emailCol] = "role_account";
+    } else {
+      updatedFlags[emailCol] = result.status;
+    }
+
+    const { error: updateErr } = await supabaseServer
+      .from("list_rows")
+      .update({ flags: updatedFlags })
+      .eq("id", rowId);
+
+    if (updateErr) {
+      return NextResponse.json({
+        success: false,
+        error: `Verified email but failed to save flag: ${updateErr.message}`,
+      });
     }
 
     return NextResponse.json({

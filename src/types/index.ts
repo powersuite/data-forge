@@ -57,6 +57,15 @@ export interface EnrichmentProgress {
   errors: number;
 }
 
+export interface EnrichmentLogEntry {
+  timestamp: string;
+  rowId: string;
+  rowLabel: string;       // e.g. "Row 3 – Joe's Pizza"
+  action: string;         // e.g. "scrape", "find_email", "verify_email", "generate_pattern"
+  result: "success" | "error" | "skip";
+  detail: string;         // human-readable description of what happened
+}
+
 export interface EnrichmentSummary {
   contactsExtracted: number;
   emailsFound: number;
@@ -68,6 +77,7 @@ export interface EnrichmentSummary {
   roleAccounts: number;
   patternsGenerated: number;
   errors: number;
+  log: EnrichmentLogEntry[];
 }
 
 export interface ScrapeResult {
