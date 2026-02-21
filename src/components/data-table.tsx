@@ -82,7 +82,7 @@ export function DataTable({
         header: "#",
         size: 52,
         cell: ({ row }) => (
-          <div className="h-[40px] px-3 flex items-center text-[11px] text-muted-foreground/70 tabular-nums font-mono">
+          <div className="h-[40px] px-3 flex items-center text-[11px] text-zinc-400 tabular-nums font-mono">
             {row.original.row_index + 1}
           </div>
         ),
@@ -148,7 +148,7 @@ export function DataTable({
                     "sticky top-0 z-10 whitespace-nowrap",
                     "bg-[#12121f] text-left",
                     "px-4 py-3",
-                    "text-[10px] font-bold text-muted-foreground/80 uppercase tracking-[0.1em]",
+                    "text-[10px] font-bold text-zinc-400 uppercase tracking-[0.1em]",
                     "border-b-2 border-white/[0.06]",
                     i > 0 && "border-l border-white/[0.04]"
                   )}
