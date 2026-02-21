@@ -5,6 +5,7 @@ export interface List {
   row_count: number;
   cleaned: boolean;
   enriched: boolean;
+  enrichment_summary: EnrichmentSummary | null;
   created_at: string;
   updated_at: string;
 }

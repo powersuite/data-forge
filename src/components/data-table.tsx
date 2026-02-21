@@ -7,14 +7,6 @@ import {
   flexRender,
   ColumnDef,
 } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DataTableCell } from "@/components/data-table-cell";
 import { ListRow, CellFlag } from "@/types";
@@ -65,7 +57,6 @@ export function DataTable({
   isEnriched,
   onCellEdit,
 }: DataTableProps) {
-  // Filter out internal columns from display
   const displayColumns = useMemo(
     () => columns.filter((c) => !c.startsWith("_")),
     [columns]
@@ -89,11 +80,11 @@ export function DataTable({
       {
         id: "_index",
         header: "#",
-        size: 50,
+        size: 56,
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground tabular-nums px-2">
+          <div className="px-3 py-2.5 text-xs text-muted-foreground tabular-nums">
             {row.original.row_index + 1}
-          </span>
+          </div>
         ),
       },
       ...displayColumns.map(
@@ -113,18 +104,17 @@ export function DataTable({
       ),
     ];
 
-    // Add enrichment source column if enriched
     if (hasEnrichmentSource) {
       cols.push({
         id: "_source",
         header: "Source",
-        size: 120,
+        size: 130,
         cell: ({ row }) => {
           const source = row.original.data["_enrichment_source"];
-          if (!source) return <span className="px-2 text-xs text-muted-foreground">—</span>;
+          if (!source) return <div className="px-3 py-2.5 text-xs text-muted-foreground">—</div>;
           const info = SOURCE_LABELS[source] ?? { label: source, variant: "outline" as const };
           return (
-            <div className="px-2 py-1">
+            <div className="px-3 py-2.5">
               <Badge variant={info.variant} className="text-[10px] px-1.5 py-0">
                 {info.label}
               </Badge>
@@ -145,51 +135,52 @@ export function DataTable({
   });
 
   return (
-    <div className="rounded-md border overflow-auto max-h-[calc(100vh-220px)]">
-      <Table>
-        <TableHeader>
+    <div className="rounded-lg border border-border/50 bg-card overflow-auto max-h-[calc(100vh-220px)]">
+      <table className="w-full caption-bottom text-sm">
+        <thead className="[&_tr]:border-b">
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <tr key={headerGroup.id} className="border-b border-border/50">
               {headerGroup.headers.map((header) => (
-                <TableHead
+                <th
                   key={header.id}
                   style={{ width: header.getSize(), minWidth: header.getSize() }}
-                  className="whitespace-nowrap bg-muted/50 text-xs font-semibold sticky top-0 z-10"
+                  className="sticky top-0 z-10 whitespace-nowrap bg-muted/80 backdrop-blur-sm px-3 py-2.5 text-left text-xs font-semibold text-foreground uppercase tracking-wider border-b border-border/50"
                 >
                   {flexRender(
                     header.column.columnDef.header,
                     header.getContext()
                   )}
-                </TableHead>
+                </th>
               ))}
-            </TableRow>
+            </tr>
           ))}
-        </TableHeader>
-        <TableBody>
+        </thead>
+        <tbody className="[&_tr:last-child]:border-0">
           {table.getRowModel().rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={tableColumns.length} className="h-24 text-center">
+            <tr>
+              <td colSpan={tableColumns.length} className="h-24 text-center text-muted-foreground">
                 No data
-              </TableCell>
-            </TableRow>
+              </td>
+            </tr>
           ) : (
             table.getRowModel().rows.map((row) => (
-              <TableRow
+              <tr
                 key={row.id}
                 className={cn(
-                  row.original.is_duplicate && "opacity-60"
+                  "border-b border-border/30 transition-colors hover:bg-muted/30",
+                  row.original.is_duplicate && "opacity-50"
                 )}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="p-0">
+                  <td key={cell.id} className="p-0 align-middle whitespace-nowrap">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
+                  </td>
                 ))}
-              </TableRow>
+              </tr>
             ))
           )}
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
     </div>
   );
 }

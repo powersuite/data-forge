@@ -17,6 +17,17 @@ export function ListCard({ list }: ListCardProps) {
     year: "numeric",
   });
 
+  const summary = list.enrichment_summary;
+  const enrichedSubtext = summary
+    ? [
+        summary.contactsExtracted > 0 && `${summary.contactsExtracted} contacts`,
+        (summary.emailsFound + summary.patternsGenerated) > 0 && `${summary.emailsFound + summary.patternsGenerated} emails`,
+        summary.validEmails > 0 && `${summary.validEmails} valid`,
+      ]
+        .filter(Boolean)
+        .join(" \u00b7 ")
+    : null;
+
   return (
     <Link href={`/list/${list.id}`}>
       <Card className="transition-colors hover:bg-muted/50">
@@ -30,18 +41,24 @@ export function ListCard({ list }: ListCardProps) {
               {list.row_count.toLocaleString()} rows &middot; {list.columns.length} columns &middot; {date}
             </p>
           </div>
-          <Badge
-            variant={list.enriched ? "default" : list.cleaned ? "default" : "secondary"}
-            className="shrink-0"
-          >
-            {list.enriched ? (
-              <><Zap className="mr-1 h-3 w-3" /> Enriched</>
-            ) : list.cleaned ? (
-              <><CheckCircle2 className="mr-1 h-3 w-3" /> Cleaned</>
-            ) : (
-              <><Clock className="mr-1 h-3 w-3" /> Raw</>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge
+              variant={list.enriched ? "default" : list.cleaned ? "default" : "secondary"}
+            >
+              {list.enriched ? (
+                <><Zap className="mr-1 h-3 w-3" /> Enriched</>
+              ) : list.cleaned ? (
+                <><CheckCircle2 className="mr-1 h-3 w-3" /> Cleaned</>
+              ) : (
+                <><Clock className="mr-1 h-3 w-3" /> Raw</>
+              )}
+            </Badge>
+            {enrichedSubtext && (
+              <span className="text-[10px] text-muted-foreground">
+                {enrichedSubtext}
+              </span>
             )}
-          </Badge>
+          </div>
         </CardContent>
       </Card>
     </Link>

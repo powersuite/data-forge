@@ -165,16 +165,17 @@ export default function ListDetailPage({
         }
       }
 
-      // Mark list as enriched
+      // Mark list as enriched and store summary
       await supabase
         .from("lists")
         .update({
           enriched: true,
+          enrichment_summary: result,
           updated_at: new Date().toISOString(),
         })
         .eq("id", list.id);
 
-      setList((prev) => (prev ? { ...prev, enriched: true } : prev));
+      setList((prev) => (prev ? { ...prev, enriched: true, enrichment_summary: result } : prev));
       toast.success("Enrichment complete!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Enrichment failed");
