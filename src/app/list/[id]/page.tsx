@@ -79,13 +79,14 @@ export default function ListDetailPage({
   }, [id, router]);
 
   /** Run enrichment (shared by both Enrich and Re-enrich) */
-  const doEnrich = useCallback(async () => {
-    if (!list || rows.length === 0) return;
+  const doEnrich = useCallback(async (overrideRows?: ListRow[]) => {
+    const enrichRows = overrideRows ?? rows;
+    if (!list || enrichRows.length === 0) return;
     setIsEnriching(true);
-    setEnrichmentProgress({ step: "Starting...", current: 0, total: rows.length, errors: 0 });
+    setEnrichmentProgress({ step: "Starting...", current: 0, total: enrichRows.length, errors: 0 });
 
     try {
-      const result = await runEnrichment(rows, columns, list.id, (progress) => {
+      const result = await runEnrichment(enrichRows, columns, list.id, (progress) => {
         setEnrichmentProgress(progress);
       });
 
@@ -180,8 +181,8 @@ export default function ListDetailPage({
     setList((prev) => (prev ? { ...prev, enriched: false, enrichment_summary: null } : prev));
     setRows(clearedRows);
 
-    // Now run enrichment again
-    await doEnrich();
+    // Pass clearedRows directly — state won't be updated yet due to React batching
+    await doEnrich(clearedRows);
   }, [list, rows, doEnrich]);
 
   // Smart Cleanup
