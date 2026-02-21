@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -9,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Download, Eye, EyeOff, Zap } from "lucide-react";
+import { Sparkles, Download, Eye, EyeOff, Zap, CheckCircle2 } from "lucide-react";
 import { EnrichmentProgress as EnrichmentProgressType } from "@/types";
 
 export type FilterMode =
@@ -62,15 +61,31 @@ export function DataTableToolbar({
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="text-xs">
+        {/* Row count badge */}
+        <span className="inline-flex items-center rounded-md bg-zinc-800 border border-zinc-700/50 px-2.5 py-1 text-xs font-medium text-zinc-300 tabular-nums">
           {rowCount.toLocaleString()} rows
-        </Badge>
+        </span>
+
+        {/* Status badges */}
+        {isCleaned && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-900/50 border border-emerald-700/40 px-2.5 py-1 text-xs font-medium text-emerald-300">
+            <CheckCircle2 className="h-3 w-3" />
+            Cleaned
+          </span>
+        )}
+        {isEnriched && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-blue-900/50 border border-blue-700/40 px-2.5 py-1 text-xs font-medium text-blue-300">
+            <Zap className="h-3 w-3" />
+            Enriched
+          </span>
+        )}
+
         {duplicateCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggleDuplicates}
-            className="h-7 gap-1 text-xs"
+            className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             {hideDuplicates ? (
               <Eye className="h-3.5 w-3.5" />
@@ -80,9 +95,10 @@ export function DataTableToolbar({
             {hideDuplicates ? "Show" : "Hide"} {duplicateCount} duplicates
           </Button>
         )}
+
         {isCleaned && (
           <Select value={filterMode} onValueChange={(v) => onFilterChange(v as FilterMode)}>
-            <SelectTrigger className="h-7 w-[160px] text-xs">
+            <SelectTrigger className="h-7 w-[160px] text-xs bg-zinc-800/50 border-zinc-700/50">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -96,12 +112,13 @@ export function DataTableToolbar({
           </Select>
         )}
       </div>
+
       <div className="flex items-center gap-2">
         <Button
           onClick={onCleanup}
           disabled={isCleaning || isCleaned}
           size="sm"
-          className="gap-1.5"
+          className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40"
         >
           <Sparkles className="h-4 w-4" />
           {isCleaning ? "Cleaning..." : isCleaned ? "Cleaned" : "Smart Cleanup"}
@@ -110,13 +127,17 @@ export function DataTableToolbar({
           onClick={onEnrich}
           disabled={!isCleaned || isEnriching || isEnriched}
           size="sm"
-          variant="secondary"
-          className="gap-1.5"
+          className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40"
         >
           <Zap className="h-4 w-4" />
           {enrichButtonLabel}
         </Button>
-        <Button onClick={onExport} variant="outline" size="sm" className="gap-1.5">
+        <Button
+          onClick={onExport}
+          variant="outline"
+          size="sm"
+          className="gap-1.5 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+        >
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
