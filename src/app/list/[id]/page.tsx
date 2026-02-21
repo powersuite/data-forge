@@ -20,6 +20,7 @@ import { DataTableToolbar, FilterMode } from "@/components/data-table-toolbar";
 import { CleanupSummaryDialog } from "@/components/cleanup-summary-dialog";
 import { EnrichmentProgress } from "@/components/enrichment-progress";
 import { EnrichmentSummaryDialog } from "@/components/enrichment-summary-dialog";
+import { ColorLegend } from "@/components/color-legend";
 
 export default function ListDetailPage({
   params,
@@ -265,6 +266,8 @@ export default function ListDetailPage({
         filterMode={filterMode}
         onFilterChange={setFilterMode}
       />
+
+      <ColorLegend />
 
       {isEnriching && enrichmentProgress && (
         <div className="mb-3">

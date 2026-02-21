@@ -11,24 +11,27 @@ interface DataTableCellProps {
   onSave: (value: string) => void;
 }
 
-// High-contrast color tints for dark mode — bright enough to read
-const flagStyles: Record<CellFlag, string> = {
-  // Phase 1 cleanup
-  missing: "bg-amber-500/25 border-l-2 border-l-amber-400 text-amber-100",
-  cleaned: "bg-emerald-500/20 text-emerald-100",
-  split: "bg-emerald-500/20 text-emerald-100",
-  formatted: "bg-emerald-500/20 text-emerald-100",
-  personal_email: "bg-blue-500/20 text-blue-100",
-  business_email: "bg-violet-500/20 text-violet-100",
-  // Phase 2 enrichment
-  enriched: "bg-emerald-500/25 border-l-2 border-l-emerald-400 text-emerald-50",
-  needs_enrichment: "bg-orange-500/20 border-l-2 border-l-orange-400 text-orange-100",
-  valid: "bg-green-500/20 border-l-2 border-l-green-400 text-green-100",
-  invalid: "bg-red-500/25 border-l-2 border-l-red-400 text-red-100",
-  risky: "bg-yellow-500/20 border-l-2 border-l-yellow-400 text-yellow-100",
-  unknown: "bg-zinc-500/20 text-zinc-200",
-  role_account: "bg-purple-500/20 border-l-2 border-l-purple-400 text-purple-100",
+// Exact brand colors at 25% opacity for cell backgrounds
+// Using inline styles since Tailwind can't do arbitrary hex + opacity
+const FLAG_COLORS: Record<CellFlag, { bg: string; border: string }> = {
+  missing:        { bg: "rgba(255,140,0,0.25)",  border: "#FF8C00" },  // orange
+  cleaned:        { bg: "rgba(0,204,102,0.18)",   border: "" },         // green
+  split:          { bg: "rgba(0,204,102,0.18)",   border: "" },         // green
+  formatted:      { bg: "rgba(0,204,102,0.18)",   border: "" },         // green
+  personal_email: { bg: "rgba(51,153,255,0.22)",  border: "" },         // blue
+  business_email: { bg: "rgba(170,68,255,0.22)",  border: "" },         // purple
+  enriched:       { bg: "rgba(0,204,102,0.25)",   border: "#00CC66" },  // green
+  needs_enrichment:{ bg: "rgba(255,140,0,0.20)",  border: "#FF8C00" },  // orange
+  valid:          { bg: "rgba(0,204,102,0.20)",   border: "#00CC66" },  // green
+  invalid:        { bg: "rgba(255,51,51,0.22)",   border: "#FF3333" },  // red
+  risky:          { bg: "rgba(255,204,0,0.20)",   border: "#FFCC00" },  // yellow
+  unknown:        { bg: "rgba(160,160,180,0.15)", border: "" },         // gray
+  role_account:   { bg: "rgba(170,68,255,0.22)",  border: "#AA44FF" },  // purple
 };
+
+// Colors for duplicate and empty (no flag)
+const DUPLICATE_BG = "rgba(255,51,51,0.22)";
+const EMPTY_BG = "rgba(255,140,0,0.25)";
 
 export function DataTableCell({
   value,
@@ -70,18 +73,27 @@ export function DataTableCell({
   );
 
   const isEmpty = !value;
+  const flagColor = flag ? FLAG_COLORS[flag] : null;
+
+  // Build inline style for background + left border
+  const cellStyle: React.CSSProperties = {};
+  if (flagColor) {
+    cellStyle.backgroundColor = flagColor.bg;
+    if (flagColor.border) {
+      cellStyle.borderLeft = `2px solid ${flagColor.border}`;
+    }
+  } else if (isDuplicate) {
+    cellStyle.backgroundColor = DUPLICATE_BG;
+  } else if (isEmpty) {
+    cellStyle.backgroundColor = EMPTY_BG;
+  }
 
   return (
     <div
       onDoubleClick={() => setIsEditing(true)}
+      style={isEditing ? {} : cellStyle}
       className={cn(
         "h-[40px] px-4 py-2 text-[13px] leading-relaxed cursor-default flex items-center text-zinc-100",
-        // Duplicate row tint
-        isDuplicate && "bg-red-500/20 text-red-100",
-        // Empty cell gets amber tint so missing data jumps out
-        isEmpty && !flag && "bg-amber-500/25",
-        // Flag-based styling overrides
-        flag && flagStyles[flag],
         isEditing && "p-0 h-auto"
       )}
     >
@@ -96,10 +108,8 @@ export function DataTableCell({
         />
       ) : (
         <span
-          className={cn(
-            "truncate",
-            isEmpty && "text-amber-300 italic text-xs font-medium"
-          )}
+          className="truncate"
+          style={isEmpty ? { color: "#FF8C00", fontStyle: "italic", fontSize: "12px", fontWeight: 500 } : undefined}
         >
           {value || "empty"}
         </span>
